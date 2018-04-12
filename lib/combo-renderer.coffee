@@ -7,6 +7,7 @@ module.exports =
   conf: []
   isEnable: false
   currentStreak: 0
+  totalCombo: 0
   level: 0
   maxStreakReached: false
 
@@ -31,6 +32,8 @@ module.exports =
     @observe 'multiplier'
     @subscriptions.add atom.commands.add "atom-workspace",
       "activate-power-mode:reset-max-combo": => @resetMaxStreak()
+    @subscriptions.add atom.commands.add "atom-workspace",
+      "activate-power-mode:reset-total-stroke": => @resetTotalCombo()
 
   reset: ->
     @container?.parentNode?.removeChild @container
@@ -45,6 +48,7 @@ module.exports =
     @streakTimeoutObserver?.dispose()
     @opacityObserver?.dispose()
     @currentStreak = 0
+    @totalCombo = 0
     @level = 0
     @maxStreakReached = false
 
@@ -57,10 +61,13 @@ module.exports =
   setup: (editorElement) ->
     if not @container
       @maxStreak = @getMaxStreak()
+      @totalCombo = @getTotalCombo()
       @container = @createElement "streak-container"
       @container.classList.add "combo-zero"
       @title = @createElement "title", @container
       @title.textContent = "Combo"
+      @total = @createElement "Total", @container
+      @total.textContent = "Total #{@totalCombo}"
       @max = @createElement "max", @container
       @max.textContent = "Max #{@maxStreak}"
       @counter = @createElement "counter", @container
@@ -107,6 +114,9 @@ module.exports =
     @currentStreak += n
     @currentStreak = 0 if @currentStreak < 0
 
+    @totalCombo += n
+    @totalCombo = 0 if @totalCombo < 0
+
     @streakIncreased n if n > 0
     @streakDecreased n if n < 0
 
@@ -123,6 +133,7 @@ module.exports =
     @container.classList.remove "combo-zero"
     if @currentStreak > @maxStreak
       @increaseMaxStreak()
+    @increaseTotalCombo()
 
     return if @checkLevel()
 
@@ -210,14 +221,28 @@ module.exports =
     maxStreak = 0 if maxStreak is null
     maxStreak
 
+  getTotalCombo: ->
+    totalCombo = localStorage.getItem "activate-power-mode.totalCombo"
+    if totalCombo < @maxStreak
+      totalCombo = @maxStreak
+      localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
+    totalCombo = 0 if totalCombo is null
+    totalCombo = parseInt(totalCombo, 10);
+    totalCombo
+
   increaseMaxStreak: ->
     localStorage.setItem "activate-power-mode.maxStreak", @currentStreak
     @maxStreak = @currentStreak
     @max.textContent = "Max #{@maxStreak}"
+    @total.textContent = "Total #{@totalCombo}"
     if @maxStreakReached is false
       @showExclamation "NEW MAX!!!", 'max-combo', false
       @pluginManager.runOnComboMaxStreak(@maxStreak)
     @maxStreakReached = true
+
+  increaseTotalCombo: ->
+    localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
+    @total.textContent = "Total #{@totalCombo}"
 
   resetMaxStreak: ->
     localStorage.setItem "activate-power-mode.maxStreak", 0
@@ -225,3 +250,9 @@ module.exports =
     @maxStreak = 0
     if @max
       @max.textContent = "Max 0"
+
+  resetTotalCombo: ->
+    localStorage.setItem "activate-power-mode.totalCombo", 0
+    @totalCombo = 0
+    if @total
+      @total.textContent = "Total 0"
