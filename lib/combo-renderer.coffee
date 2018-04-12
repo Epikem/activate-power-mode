@@ -30,6 +30,7 @@ module.exports =
     @observe 'activationThreshold'
     @observe 'exclamationTexts'
     @observe 'multiplier'
+    @observe 'useTotalCombo'
     @subscriptions.add atom.commands.add "atom-workspace",
       "activate-power-mode:reset-max-combo": => @resetMaxStreak()
     @subscriptions.add atom.commands.add "atom-workspace",
@@ -61,13 +62,17 @@ module.exports =
   setup: (editorElement) ->
     if not @container
       @maxStreak = @getMaxStreak()
-      @totalCombo = @getTotalCombo()
       @container = @createElement "streak-container"
       @container.classList.add "combo-zero"
       @title = @createElement "title", @container
       @title.textContent = "Combo"
+      @totalCombo = @getTotalCombo()
+      if @totalCombo < @maxStreak
+        @totalCombo = @maxStreak
       @total = @createElement "Total", @container
       @total.textContent = "Total #{@totalCombo}"
+      if @conf['useTotalCombo'] is false
+        @total.classList.add "hide"
       @max = @createElement "max", @container
       @max.textContent = "Max #{@maxStreak}"
       @counter = @createElement "counter", @container
@@ -98,7 +103,6 @@ module.exports =
   resetCounter: ->
     return if @currentStreak is 0
 
-
     @showExclamation "#{-@currentStreak}", 'down', false
     @endStreak()
 
@@ -114,8 +118,9 @@ module.exports =
     @currentStreak += n
     @currentStreak = 0 if @currentStreak < 0
 
-    @totalCombo += n
-    @totalCombo = 0 if @totalCombo < 0
+    if @conf['useTotalCombo']
+      @totalCombo += n
+      @totalCombo = 0 if @totalCombo < 0
 
     @streakIncreased n if n > 0
     @streakDecreased n if n < 0
@@ -133,7 +138,8 @@ module.exports =
     @container.classList.remove "combo-zero"
     if @currentStreak > @maxStreak
       @increaseMaxStreak()
-    @increaseTotalCombo()
+    if @conf['useTotalCombo']
+      @increaseTotalCombo()
 
     return if @checkLevel()
 
@@ -242,7 +248,16 @@ module.exports =
 
   increaseTotalCombo: ->
     localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
-    @total.textContent = "Total #{@totalCombo}"
+    if @total
+      if @conf['useTotalCombo'] is false
+        @total = null
+        editorElement.querySelector(".Total").style.opacity = 0.2
+      @total.textContent = "Total #{@totalCombo}"
+    else
+      if @conf['useTotalCombo']
+        @total = @createElement "Total", @container
+        @total.textContent = "Total #{@totalCombo}"
+        editorElement.querySelector(".scroll-view").appendChild @container
 
   resetMaxStreak: ->
     localStorage.setItem "activate-power-mode.maxStreak", 0
