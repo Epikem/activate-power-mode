@@ -24,6 +24,13 @@ module.exports =
         default: true
         order: 2
 
+      useTotalCombo:
+        title: "Combo Mode - Total Combo"
+        description: "Turn the total combo counter on/off."
+        type: "boolean"
+        default: false
+        order: 3
+
       activationThreshold:
         title: "Combo Mode - Activation Threshold"
         description: "Streak threshold to activate the power mode and levels."

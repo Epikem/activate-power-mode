@@ -7,6 +7,7 @@ module.exports =
   conf: []
   isEnable: false
   currentStreak: 0
+  totalCombo: 0
   level: 0
   maxStreakReached: false
 
@@ -24,13 +25,17 @@ module.exports =
     @initConfigSubscribers()
 
   initConfigSubscribers: ->
+    @subscriptions?.dispose()
     @subscriptions = new CompositeDisposable
     @observe 'exclamationEvery'
     @observe 'activationThreshold'
     @observe 'exclamationTexts'
     @observe 'multiplier'
+    @observe 'useTotalCombo'
     @subscriptions.add atom.commands.add "atom-workspace",
       "activate-power-mode:reset-max-combo": => @resetMaxStreak()
+    @subscriptions.add atom.commands.add "atom-workspace",
+      "activate-power-mode:reset-total-combo": => @resetTotalCombo()
 
   reset: ->
     @container?.parentNode?.removeChild @container
@@ -40,11 +45,14 @@ module.exports =
     @reset()
     @subscriptions?.dispose()
     @container = null
+    @total = null
+    @max = null
     @debouncedEndStreak?.cancel()
     @debouncedEndStreak = null
     @streakTimeoutObserver?.dispose()
     @opacityObserver?.dispose()
     @currentStreak = 0
+    @totalCombo = 0
     @level = 0
     @maxStreakReached = false
 
@@ -61,11 +69,28 @@ module.exports =
       @container.classList.add "combo-zero"
       @title = @createElement "title", @container
       @title.textContent = "Combo"
+      @totalCombo = @getTotalCombo()
+      if @totalCombo < @maxStreak
+        @totalCombo = @maxStreak
+      if @conf['useTotalCombo']
+        @attachTotalCounter @container
       @max = @createElement "max", @container
       @max.textContent = "Max #{@maxStreak}"
       @counter = @createElement "counter", @container
       @bar = @createElement "bar", @container
       @exclamations = @createElement "exclamations", @container
+
+      @totalComboObserver?.dispose()
+      @totalComboObserver = atom.config.observe 'activate-power-mode.comboMode.useTotalCombo', (value) =>
+        if @isEnable
+          if value
+            @attachTotalCounter @container
+            # @subscriptions.add atom.commands.add "atom-workspace",
+            #   "activate-power-mode:reset-total-combo": => @resetTotalCombo()
+          else
+            # @subscriptions.remove atom.commands.remove "atom-workspace",
+            #   "activate-power-mode:reset-total-combo": => @resetTotalCombo()
+            @detachTotalCounter @container
 
       @streakTimeoutObserver?.dispose()
       @streakTimeoutObserver = atom.config.observe 'activate-power-mode.comboMode.streakTimeout', (value) =>
@@ -88,9 +113,22 @@ module.exports =
 
     @renderStreak()
 
+  attachTotalCounter: (container) ->
+    if @container.querySelector(".Total")
+      return
+    if !@total
+      @total = @createElement "Total", @container
+    @total.textContent = "Total #{@totalCombo}"
+    @container.insertBefore(@total, @max)
+    return
+
+  detachTotalCounter: (container) ->
+    if @container.querySelector(".Total")
+      @container.removeChild @total
+    return
+
   resetCounter: ->
     return if @currentStreak is 0
-
 
     @showExclamation "#{-@currentStreak}", 'down', false
     @endStreak()
@@ -106,6 +144,10 @@ module.exports =
     oldStreak = @currentStreak
     @currentStreak += n
     @currentStreak = 0 if @currentStreak < 0
+
+    if @conf['useTotalCombo']
+      @totalCombo += n
+      @totalCombo = 0 if @totalCombo < 0
 
     @streakIncreased n if n > 0
     @streakDecreased n if n < 0
@@ -123,6 +165,8 @@ module.exports =
     @container.classList.remove "combo-zero"
     if @currentStreak > @maxStreak
       @increaseMaxStreak()
+    if @conf['useTotalCombo']
+      @increaseTotalCombo()
 
     return if @checkLevel()
 
@@ -210,14 +254,29 @@ module.exports =
     maxStreak = 0 if maxStreak is null
     maxStreak
 
+  getTotalCombo: ->
+    totalCombo = localStorage.getItem "activate-power-mode.totalCombo"
+    if totalCombo < @maxStreak
+      totalCombo = @maxStreak
+      localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
+    totalCombo = 0 if totalCombo is null
+    totalCombo = parseInt(totalCombo, 10);
+    totalCombo
+
   increaseMaxStreak: ->
     localStorage.setItem "activate-power-mode.maxStreak", @currentStreak
     @maxStreak = @currentStreak
     @max.textContent = "Max #{@maxStreak}"
+    @total.textContent = "Total #{@totalCombo}"
     if @maxStreakReached is false
       @showExclamation "NEW MAX!!!", 'max-combo', false
       @pluginManager.runOnComboMaxStreak(@maxStreak)
     @maxStreakReached = true
+
+  increaseTotalCombo: ->
+    localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
+    if @total
+      @total.textContent = "Total #{@totalCombo}"
 
   resetMaxStreak: ->
     localStorage.setItem "activate-power-mode.maxStreak", 0
@@ -225,3 +284,9 @@ module.exports =
     @maxStreak = 0
     if @max
       @max.textContent = "Max 0"
+
+  resetTotalCombo: ->
+    localStorage.setItem "activate-power-mode.totalCombo", 0
+    @totalCombo = @getTotalCombo()
+    if @total
+      @total.textContent = "Total #{@totalCombo}"
