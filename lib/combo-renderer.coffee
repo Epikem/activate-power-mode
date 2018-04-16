@@ -256,9 +256,6 @@ module.exports =
 
   getTotalCombo: ->
     totalCombo = localStorage.getItem "activate-power-mode.totalCombo"
-    if totalCombo < @maxStreak
-      totalCombo = @maxStreak
-      localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
     totalCombo = 0 if totalCombo is null
     totalCombo = parseInt(totalCombo, 10);
     totalCombo
@@ -286,7 +283,10 @@ module.exports =
       @max.textContent = "Max 0"
 
   resetTotalCombo: ->
-    localStorage.setItem "activate-power-mode.totalCombo", 0
-    @totalCombo = @getTotalCombo()
+    @totalCombo = 0
+    max = parseInt(@maxStreak)
+    if @totalCombo < max
+      @totalCombo = max
+      localStorage.setItem "activate-power-mode.totalCombo", max
     if @total
       @total.textContent = "Total #{@totalCombo}"
