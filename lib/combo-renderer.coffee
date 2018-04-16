@@ -7,7 +7,6 @@ module.exports =
   conf: []
   isEnable: false
   currentStreak: 0
-  totalCombo: 0
   level: 0
   maxStreakReached: false
 
@@ -52,7 +51,6 @@ module.exports =
     @streakTimeoutObserver?.dispose()
     @opacityObserver?.dispose()
     @currentStreak = 0
-    @totalCombo = 0
     @level = 0
     @maxStreakReached = false
 
@@ -65,13 +63,11 @@ module.exports =
   setup: (editorElement) ->
     if not @container
       @maxStreak = @getMaxStreak()
+      @totalCombo = @getTotalCombo()
       @container = @createElement "streak-container"
       @container.classList.add "combo-zero"
       @title = @createElement "title", @container
       @title.textContent = "Combo"
-      @totalCombo = @getTotalCombo()
-      if @totalCombo < @maxStreak
-        @totalCombo = @maxStreak
       if @conf['useTotalCombo']
         @attachTotalCounter @container
       @max = @createElement "max", @container
@@ -83,13 +79,10 @@ module.exports =
       @totalComboObserver?.dispose()
       @totalComboObserver = atom.config.observe 'activate-power-mode.comboMode.useTotalCombo', (value) =>
         if @isEnable
+          # TODO: set atom command visibility on/off
           if value
             @attachTotalCounter @container
-            # @subscriptions.add atom.commands.add "atom-workspace",
-            #   "activate-power-mode:reset-total-combo": => @resetTotalCombo()
           else
-            # @subscriptions.remove atom.commands.remove "atom-workspace",
-            #   "activate-power-mode:reset-total-combo": => @resetTotalCombo()
             @detachTotalCounter @container
 
       @streakTimeoutObserver?.dispose()
@@ -287,6 +280,6 @@ module.exports =
     max = parseInt(@maxStreak)
     if @totalCombo < max
       @totalCombo = max
-      localStorage.setItem "activate-power-mode.totalCombo", max
+    localStorage.setItem "activate-power-mode.totalCombo", max
     if @total
       @total.textContent = "Total #{@totalCombo}"
