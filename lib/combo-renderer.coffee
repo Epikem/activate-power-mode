@@ -7,7 +7,6 @@ module.exports =
   conf: []
   isEnable: false
   currentStreak: 0
-  totalCombo: 0
   level: 0
   maxStreakReached: false
 
@@ -52,7 +51,6 @@ module.exports =
     @streakTimeoutObserver?.dispose()
     @opacityObserver?.dispose()
     @currentStreak = 0
-    @totalCombo = 0
     @level = 0
     @maxStreakReached = false
 
@@ -65,13 +63,11 @@ module.exports =
   setup: (editorElement) ->
     if not @container
       @maxStreak = @getMaxStreak()
+      @totalCombo = @getTotalCombo()
       @container = @createElement "streak-container"
       @container.classList.add "combo-zero"
       @title = @createElement "title", @container
       @title.textContent = "Combo"
-      @totalCombo = @getTotalCombo()
-      if @totalCombo < @maxStreak
-        @totalCombo = @maxStreak
       if @conf['useTotalCombo']
         @attachTotalCounter @container
       @max = @createElement "max", @container
@@ -88,9 +84,9 @@ module.exports =
             # @subscriptions.add atom.commands.add "atom-workspace",
             #   "activate-power-mode:reset-total-combo": => @resetTotalCombo()
           else
+            @detachTotalCounter @container
             # @subscriptions.remove atom.commands.remove "atom-workspace",
             #   "activate-power-mode:reset-total-combo": => @resetTotalCombo()
-            @detachTotalCounter @container
 
       @streakTimeoutObserver?.dispose()
       @streakTimeoutObserver = atom.config.observe 'activate-power-mode.comboMode.streakTimeout', (value) =>
@@ -256,12 +252,8 @@ module.exports =
 
   getTotalCombo: ->
     totalCombo = localStorage.getItem "activate-power-mode.totalCombo"
-    if totalCombo < @maxStreak
-      totalCombo = @maxStreak
-      localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
     totalCombo = 0 if totalCombo is null
-    totalCombo = parseInt(totalCombo, 10);
-    totalCombo
+    parseInt(totalCombo)
 
   increaseMaxStreak: ->
     localStorage.setItem "activate-power-mode.maxStreak", @currentStreak
@@ -286,7 +278,10 @@ module.exports =
       @max.textContent = "Max 0"
 
   resetTotalCombo: ->
-    localStorage.setItem "activate-power-mode.totalCombo", 0
-    @totalCombo = @getTotalCombo()
+    @totalCombo = 0
+    max = parseInt(@maxStreak)
+    if @totalCombo < max
+      @totalCombo = max
+      localStorage.setItem "activate-power-mode.totalCombo", @totalCombo
     if @total
       @total.textContent = "Total #{@totalCombo}"
